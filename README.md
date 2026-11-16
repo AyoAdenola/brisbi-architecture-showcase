@@ -1,157 +1,129 @@
-# Brisbi Platform — Architecture Showcase
+# Brisbi — Architecture Showcase
 
-> **Note:** The full codebase is private to protect business logic and payment infrastructure. This repository exists so engineers and hiring teams can inspect the architecture, data model, and code patterns behind the live product.
-
----
-
-## What Is Brisbi?
-
-Brisbi is an **AI-verified execution and accountability platform**. The core thesis: most productivity tools let users self-report progress. Brisbi doesn't. Every session completion must be verified — by AI image analysis, multimodal review, or community consensus — before it counts.
-
-The by-product of consistent, verified execution is the **Brisbi Score**: a composite trust score analogous to a credit score, but for personal execution. It measures whether someone actually does what they say they will do.
-
-**Live product:**
-- Web platform: [brisbi.com](https://brisbi.com)
-- Mobile app: live on Google Play (React Native / Expo)
+The full repos are private. This one exists so engineers can look at the actual code and schema without me having to give access to the whole codebase.
 
 ---
 
-## Tech Stack
+## What is Brisbi?
 
-| Layer | Technology |
+Brisbi is an execution and accountability platform. The problem I'm solving: every other productivity tool trusts you to self-report. Brisbi doesn't. Every session you complete has to be verified before it counts — through AI proof analysis, community review, or both.
+
+The side effect of doing that consistently is a **Brisbi Score** — basically a credit score for execution. It tracks whether you actually follow through on what you say you'll do.
+
+**It's live:**
+- Web: [brisbi.com](https://brisbi.com)
+- Mobile: Google Play (React Native / Expo)
+
+---
+
+## Stack
+
+| | |
 |---|---|
-| Backend API | NestJS (TypeScript) |
-| Frontend (web) | Next.js 15 App Router (TypeScript) |
+| Backend | NestJS (TypeScript) |
+| Frontend | Next.js 15 App Router |
 | Mobile | React Native + Expo |
-| Database | PostgreSQL via Supabase |
+| Database | PostgreSQL (Supabase) |
 | ORM | Prisma |
-| Payments | Stripe (USD) + Paystack (NGN) |
-| AI / Verification | Groq + Google Gemini |
-| File storage | Cloudinary |
-| Real-time video | Daily.co |
-| Vector search | pgvector (via Prisma `postgresqlExtensions`) |
+| Payments | Stripe + Paystack |
+| AI | Groq + Google Gemini |
+| Storage | Cloudinary |
+| Video | Daily.co |
+| Vector search | pgvector |
 
 ---
 
-## Data Model — 72 Prisma Models
+## Data Model — 72 models
 
-The schema covers five product domains:
+Five domains:
 
-### 1. Identity & Trust
+### Identity & Trust
 `User`, `Profile`, `UserPreferences`, `Guardian`, `AccountabilityPartner`, `CreatorApplication`, `ScoreSnapshot`, `DailyActivity`, `UserAnalytics`
 
-The `User` model tracks five independent trust sub-scores that compose into the Brisbi Score:
-- `trust_consistency_score` — execution rate over time
-- `trust_authenticity_score` — proof verification pass rate
-- `trust_tenure_score` — platform longevity
-- `trust_recovery_score` — rebound after missed sessions
-- `trust_community_score` — peer validation behaviour
+The score isn't one field. `User` stores five sub-scores separately: `trust_consistency_score`, `trust_authenticity_score`, `trust_tenure_score`, `trust_recovery_score`, `trust_community_score`. Each gets updated by different events and they combine into the final 0–1000 score.
 
-### 2. Execution Engine
+### Execution Engine
 `ExecutionSession`, `ExecutionPath`, `ExecutionPathTask`, `Artifact`, `ProofFlag`, `Task`, `Goal`, `UserGoalCheckIn`, `PostMortem`, `PodDayCompletion`
 
-An `ExecutionSession` stores a `proof_hash` and `proof_phash` (perceptual hash) of the submitted proof media. This enables duplicate-proof detection: the same image, re-uploaded with minor edits, is caught via perceptual distance comparison.
+Each `ExecutionSession` stores both a `proof_hash` (exact match) and `proof_phash` (perceptual hash). The perceptual hash catches the same image re-uploaded with edits — brightness tweaks, crops, etc.
 
-The `ProofFlag` model implements community review: members can flag a session as fake. When a session accumulates enough flags, it escalates to AI re-verification.
+`ProofFlag` is the community review layer. Members flag suspicious sessions, and once a session crosses a threshold it goes back to AI re-verification.
 
-### 3. Pods (Group Accountability)
+### Pods
 `Pod`, `PodMember`, `PodDay`, `PodChatMessage`, `PodInvitation`, `PodSubscriptionPlan`, `PodContent`, `PodContentAccess`, `ContentBundle`, `PodLiveSession`, `PodReport`, `PodPayment`, `PodDayCompletion`, `VideoPost`, `VideoUpdate`, `Announcement`, `ActivityFeed`, `CreatorSurvey`, `CreatorSurveyResponse`
 
-Pods are creator-led accountability groups. A Pod has structured days (`PodDay`), optional paid content (`PodContent` with `PodContentAccess`), Stripe subscription plans, and live video sessions via Daily.co.
+Creator-led accountability groups. Each Pod runs on structured days (`PodDay`), can have paid content behind `PodContentAccess`, Stripe subscriptions, and live video via Daily.co. `PodContent` supports bundles — a `BUNDLE` type that references individual items through `ContentBundle`.
 
-The `PodContent` model supports a self-referential bundle structure: a `BUNDLE` content type links to individual items via the `ContentBundle` join table.
-
-### 4. Creator Economy
+### Creator Economy
 `PayoutAccount`, `CreatorBalance`, `WithdrawalRequest`, `WithdrawalAuditLog`, `PayoutAccountVerification`, `InnerCircle`, `InnerCircleMember`, `InnerCircleSession`, `InnerCircleContent`, `InnerCircleAnnouncement`, `ConsultationSession`, `CreatorAvailability`, `SessionBooking`, `Subscription`, `CoursePurchase`, `Course`, `Lesson`
 
-Creators earn through three channels:
-1. **Pod subscriptions** — recurring via Stripe
-2. **Inner Circle** — private community with its own sessions and content
-3. **Consultations** — 1:1 bookings, available to both registered users and anonymous visitors (`visitor_name`, `visitor_email` on `ConsultationSession`)
+Creators make money three ways: Pod subscriptions (Stripe), Inner Circle memberships, and 1:1 consultations. Consultations can be booked by non-users too — `visitor_name` and `visitor_email` sit directly on `ConsultationSession`.
 
-Payouts support multiple providers (`PayoutProvider` enum: `STRIPE`, `PAYSTACK`, `WISE`, `CRYPTO`, `MANUAL`). Withdrawal requests go through OTP verification, fraud detection (`is_flagged`), and idempotency keying.
+Payouts go through five providers (`STRIPE`, `PAYSTACK`, `WISE`, `CRYPTO`, `MANUAL`). Withdrawals require OTP, go through fraud checks (`is_flagged`), and use idempotency keys.
 
-### 5. AI Companion
+### AI Companion
 `AIContext`, `AICompanionPreference`, `ChatMessage`, `PresenceMessage`, `AgentLogger`, `AgentStepTrace`
 
-The AI companion maintains a synthesized memory per user (`AIContext.synthesized_memory`). `AgentLogger` and `AgentStepTrace` are the observability layer for AI agent runs — input, output, tool calls, verification status, and error traces are all stored per step.
+Each user has a synthesized memory stored in `AIContext.synthesized_memory`. `AgentLogger` + `AgentStepTrace` are the observability layer — every agent run logs its inputs, outputs, tool calls, and errors at the step level.
 
 ---
 
-## Brisbi Score Architecture
+## How the Brisbi Score works
 
-The Brisbi Score is not a single field. It is computed from five weighted sub-scores, each updated by distinct system events:
+Five pillars, each 0–100, combined into a 0–1000 score:
 
 ```
-Brisbi Score
-├── Consistency Score    ← execution sessions completed on schedule
-├── Authenticity Score   ← AI + community proof verification results
-├── Tenure Score         ← account age and continuous engagement
-├── Recovery Score       ← how quickly streaks are rebuilt after a break
-└── Community Score      ← flagging accuracy; contribution to peer review
+Consistency   35%  — weighted execution rate over 90 days
+Authenticity  25%  — % of sessions that passed verification
+Tenure        15%  — platform age + active days (capped at 2 years)
+Recovery      15%  — did you come back after missing days?
+Community     10%  — peer "REAL" votes on your submissions (capped at 60pts)
 ```
 
-Historical snapshots are stored in `ScoreSnapshot` with individual component values, enabling trend charts and momentum tracking.
+Every recalculation saves a row to `ScoreSnapshot` with all five component values, so score history and trends are queryable.
 
-The `User` model also tracks `momentum_score`, `current_streak`, `peak_streak`, `months_above_80_momentum`, and `consecutive_months_above_80` — these feed tier progression (`UserTier`: `BLUEPRINT` → `EXECUTOR` → `UNSTOPPABLE`).
+Separately, `User` tracks `momentum_score`, `current_streak`, `peak_streak`, `months_above_80_momentum`, `consecutive_months_above_80` — these drive tier progression (`BLUEPRINT` → `EXECUTOR` → `UNSTOPPABLE`).
 
 ---
 
-## Anti-Gaming Layers
+## Anti-gaming
 
-Brisbi has multiple layers to prevent fake proof submissions:
-
-| Layer | Implementation |
+| | |
 |---|---|
-| Perceptual hash | `proof_phash` on `ExecutionSession` — detects visually similar re-uploads |
-| Exact hash | `proof_hash` — detects byte-identical resubmissions |
-| AI verification | `Artifact.ai_status` (`PENDING` → `VERIFIED` / `REJECTED`) |
-| Community flagging | `ProofFlag` model — `@@unique([session_id, flagger_user_id])` prevents double-voting |
-| Flagger accountability | `User.flags_submitted_count` and `flags_overturned_count` — tracks flagger accuracy |
-| Trial abuse detection | `TrialAbuse` — device fingerprint + IP tracking for multi-account trial abuse |
-| Account lockout | `User.failed_login_attempts` + `account_locked_until` |
-| Fraud scoring | `User.proof_risk_score`, `flagged_submissions`, `cleared_submissions`, `fraud_confirmations` |
+| `proof_hash` | byte-identical resubmission detection |
+| `proof_phash` | perceptual hash — catches edited re-uploads |
+| `Artifact.ai_status` | AI verdict: `PENDING` → `VERIFIED` / `REJECTED` |
+| `ProofFlag` | community flagging, `@@unique([session_id, flagger_user_id])` so you can't double-vote |
+| `flags_submitted_count` / `flags_overturned_count` | holds flaggers accountable for bad flags |
+| `TrialAbuse` | device fingerprint + IP to catch multi-account trial abuse |
+| `failed_login_attempts` + `account_locked_until` | brute-force lockout |
+| `proof_risk_score` | rolling fraud score per user |
 
 ---
 
-## Scale Numbers
+## Numbers
 
-- **72 Prisma models** across 5 product domains
-- **150+ API endpoints** (NestJS controllers, TypeScript, fully typed request/response)
-- **Shipped from blank repo to live product in 3 weeks** (solo founder build)
-- **Mobile app live on Google Play** (React Native + Expo)
-- **Dual payment rails**: Stripe (USD) + Paystack (NGN) with multi-provider payout routing
-- **Vector search**: pgvector extension for AI memory similarity queries
+- 72 Prisma models
+- 150+ API endpoints
+- Blank repo to live product: 3 weeks, solo
+- Mobile on Google Play
+- Two payment rails: Stripe (USD) + Paystack (NGN)
+- pgvector for AI memory search
 
 ---
 
-## Sample Files
+## Files
 
-| File | What it shows |
+| | |
 |---|---|
-| [`schema.prisma`](./schema.prisma) | Full 72-model schema with relations, indexes, and enums |
-| [`samples/auth.controller.ts`](./samples/auth.controller.ts) | NestJS controller pattern — guards, decorators, typed DTOs |
-| [`samples/brisbi-score.service.ts`](./samples/brisbi-score.service.ts) | Service pattern — Prisma transactions, score computation logic |
-
----
-
-## Repository Structure
-
-```
-brisbi-architecture-showcase/
-├── README.md                        ← this file
-├── schema.prisma                    ← full Prisma schema
-├── samples/
-│   ├── auth.controller.ts           ← NestJS auth controller
-│   └── brisbi-score.service.ts      ← Brisbi Score service
-└── screenshots/
-    └── (product screenshots)
-```
+| [`schema.prisma`](./schema.prisma) | full schema — all 72 models, relations, indexes, enums |
+| [`samples/auth.controller.ts`](./samples/auth.controller.ts) | auth controller — guards, throttling, cookie pattern, OAuth |
+| [`samples/trust-score.service.ts`](./samples/trust-score.service.ts) | score service — all 5 pillar calculations + the combiner |
 
 ---
 
 ## Author
 
-**Ayo Adenola** — Solo founder, CEO & developer  
+**Ayo Adenola** — building Brisbi as a solo founder  
 GitHub: [@AyoAdenola](https://github.com/AyoAdenola)  
-Product: [brisbi.com](https://brisbi.com)
+[brisbi.com](https://brisbi.com)
