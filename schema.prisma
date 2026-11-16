@@ -1,0 +1,1329 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+  binaryTargets   = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
+  output          = "../../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector]
+}
+
+model User {
+  id                                 String                  @id @default(uuid())
+  email                              String                  @unique
+  name                               String                  @default("")
+  password_hash                      String?
+  google_id                          String?                 @unique
+  flags_submitted_count              Int                     @default(0)
+  flags_overturned_count             Int                     @default(0)
+  preferences                        UserPreferences?
+  trust_consistency_score            Float                   @default(0)
+  trust_authenticity_score           Float                   @default(0)
+  trust_tenure_score                 Float                   @default(0)
+  trust_recovery_score                Float                  @default(0)
+  trust_community_score              Float                   @default(0)
+  trust_score_updated_at             DateTime?
+  role                               Role                    @default(USER) @map("role")
+  tier                               UserTier                @default(BLUEPRINT) @map("tier")
+  timezone                           String                  @default("UTC")
+  created_at                         DateTime                @default(now())
+  updated_at                         DateTime                @updatedAt
+  momentum_score                     Int                     @default(0)
+  current_streak                     Int                     @default(0)
+  last_active_date                   DateTime?
+  onboarding_completed               Boolean                 @default(false)
+  trial_started_at                   DateTime                @default(now())
+  trial_expires_at                   DateTime                @default(dbgenerated("(now() + '7 days'::interval)"))
+  device_fingerprint                 String?
+  signup_ip                          String?
+  days_below_threshold               Int                     @default(0)
+  email_verified                     Boolean                 @default(false)
+  subscription_status                String                  @default("ACTIVE")
+  founding_creator_token             String?
+  is_founding_creator                Boolean                 @default(false) @map("is_founding_creator")
+  is_verified                        Boolean                 @default(false) @map("is_verified")
+  consultation_available             Boolean                 @default(false)
+  consultation_rate                  Decimal?
+  push_token                         String?
+  failed_login_attempts              Int       @default(0)
+  account_locked_until               DateTime?
+  months_above_80_momentum           Int                     @default(0)
+  consecutive_months_above_80        Int                     @default(0)
+  last_momentum_check_month          Int?
+  last_momentum_check_year           Int?
+  peak_streak                        Int                     @default(0)
+  proof_risk_score                   Int                     @default(0)
+  flagged_submissions                Int                     @default(0)
+  cleared_submissions                Int                     @default(0)
+  fraud_confirmations                Int                     @default(0)
+  verification_trial_started_at      DateTime?               @default(now())
+  verification_trial_used_sessions   Int                     @default(0)
+  creator_impact_score               Int                     @default(0)
+  creator_survey_count               Int                     @default(0)
+  hashed_refresh_token                String?
+  verification_token                  String?                 @unique
+  verification_token_expires          DateTime?
+  reset_password_token                String?                 @unique
+  reset_password_expires              DateTime?
+  has_received_creator_welcome_email Boolean                 @default(false) @map("has_received_creator_welcome_email")
+  timezone_offset                    Int                     @default(0)
+  ai_preferences                     AICompanionPreference?
+  ai_context                         AIContext?
+  partnered_to                       AccountabilityPartner[] @relation("PartneredUsers")
+  accountability_partners            AccountabilityPartner[] @relation("UserPartners")
+  activity_feed_items                ActivityFeed[]
+  artifacts                          Artifact[]
+  chat_messages                      ChatMessage[]
+  consultations_hosted               ConsultationSession[]   @relation("ConsultationCreator")
+  availability_slots                 CreatorAvailability[]   @relation("CreatorAvailabilitySlots")
+  consultations_booked               ConsultationSession[]   @relation("ConsultationMember")
+  course_purchases                   CoursePurchase[]
+  creator_app                        CreatorApplication?
+  daily_activities                   DailyActivity[]
+  execution_sessions                 ExecutionSession[]
+  goals                              Goal[]
+  guardian                           Guardian?
+  inner_circles_created              InnerCircle[]           @relation("InnerCircleCreator")
+  inner_circle_memberships           InnerCircleMember[]
+  inner_circle_sessions              InnerCircleSession[]
+  inner_circle_announcements         InnerCircleAnnouncement[] @relation("InnerCircleAnnouncementCreator")
+  inner_circle_content               InnerCircleContent[]    @relation("InnerCircleContentCreator")
+  journal_entries                    JournalEntry[]
+  notifications                      Notification[]
+  payout_account                     PayoutAccount?
+  created_pods                       Pod[]                   @relation("PodCreator")
+  pod_chat_messages                  PodChatMessage[]
+  pod_memberships                    PodMember[]
+  post_mortems                       PostMortem[]
+  profile                            Profile?
+  subscriptions                      Subscription[]
+  tasks                              Task[]
+  analytics                          UserAnalytics?
+  video_posts                        VideoPost[]             @relation("VideoPostCreator")
+  pod_live_sessions                  PodLiveSession[]
+  video_updates                      VideoUpdate[]
+  withdrawal_requests                WithdrawalRequest[]
+  pod_content                        PodContent[]            @relation("PodContentCreator")
+  pod_content_access                 PodContentAccess[]
+  proof_flags                        ProofFlag[]
+  creator_surveys                    CreatorSurvey[]
+  execution_paths                    ExecutionPath[]
+  score_snapshots                    ScoreSnapshot[]
+  presence_messages                  PresenceMessage[]
+  pod_payments                       PodPayment[]
+  content_comments                   ContentComment[]
+  content_reactions                  ContentReaction[]
+  pod_day_completions                PodDayCompletion[]
+}
+
+model Profile {
+  id                String   @id @default(uuid())
+  user_id           String   @unique
+  display_name      String
+  bio               String?
+  push_token        String?
+  content_interests String[] @default([])
+  focus_areas       String[] @default([])
+  goal              String?
+  image_url         String?
+  reminder_pref              String?
+  support_prefs              String[] @default([])
+  execution_style            String?
+  accountability_preference  String?
+  focus_area                 String?
+  timezone                   String?
+  user                       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model CreatorApplication {
+  id             String        @id @default(uuid())
+  user_id        String        @unique
+  status         CreatorStatus @default(PENDING)
+  reason         String?
+  qualifications String?
+  reviewed_by    String?
+  reviewed_at    DateTime?
+  created_at     DateTime      @default(now())
+  user           User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Guardian {
+  id                       String                   @id @default(uuid())
+  user_id                  String                   @unique
+  guardian_name            String
+  email                    String
+  status                   GuardianStatus           @default(PENDING)
+  relationship_type        GuardianRelationshipType @default(FRIEND)
+  guardian_alerts_accepted Boolean                  @default(false)
+  day1_alerts_enabled      Boolean                  @default(true)
+  day3_alerts_enabled      Boolean                  @default(true)
+  created_at               DateTime                 @default(now())
+  user                     User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Pod {
+  id                     String                @id @default(uuid())
+  creator_id             String
+  title                  String
+  description            String
+  base_price_usd         Decimal               @default(0.00)
+  max_members            Int?
+  is_active              Boolean               @default(true)
+  created_at             DateTime              @default(now())
+  updated_at             DateTime              @updatedAt
+  execution_metric       String?
+  verification_type      VerificationType      @default(MANUAL)
+  currency               String                @default("USD")
+  is_email_locked        Boolean               @default(false)
+  allowed_emails         String[]
+  closed_at              DateTime?
+  cached_global_momentum Float                 @default(0)
+  creator_links          Json?
+  category               String?
+  duration               String?
+  status                 String                @default("ACTIVE")
+  inactivity_warning_sent_at DateTime?
+  deactivated_at         DateTime?
+  welcome_message        String?
+  announcements          Announcement[]
+  courses                Course[]
+  creator                User                  @relation("PodCreator", fields: [creator_id], references: [id])
+  chat_messages          PodChatMessage[]
+  days                   PodDay[]
+  invitations            PodInvitation[]
+  members                PodMember[]
+  plans                  PodSubscriptionPlan[]
+  subscriptions          Subscription[]
+  video_posts            VideoPost[]
+  video_updates          VideoUpdate[]
+  content                PodContent[]
+  surveys                CreatorSurvey[]
+  live_sessions          PodLiveSession[]
+  reports                PodReport[]
+  activity_feed          ActivityFeed[]
+  payments               PodPayment[]
+
+  @@index([creator_id])
+}
+
+model PodContent {
+  id                   String             @id @default(uuid())
+  pod_id               String
+  creator_id           String
+  title                String
+  description          String?
+  content_type         PodContentType
+  file_url             String?
+  cloudinary_public_id String?
+  thumbnail_url        String?
+  file_size            Int?               // in bytes
+  duration             Int?               // in seconds for videos
+  is_free              Boolean            @default(true)
+  price                Decimal            @default(0)
+  currency             String             @default("USD")
+  is_published         Boolean            @default(false)
+  download_count       Int                @default(0)
+  view_count           Int                @default(0)
+  created_at           DateTime           @default(now())
+  updated_at           DateTime           @updatedAt
+  
+  pod                  Pod                @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  creator              User               @relation("PodContentCreator", fields: [creator_id], references: [id])
+  access               PodContentAccess[]
+  
+  // Self-relation for Bundles
+  bundle_items         ContentBundle[]    @relation("BundleToItems")
+  item_of_bundles      ContentBundle[]    @relation("ItemInBundles")
+}
+
+model PodContentAccess {
+  id                       String     @id @default(uuid())
+  content_id               String
+  user_id                  String
+  stripe_payment_intent_id String?
+  amount_paid              Decimal?
+  granted_at               DateTime   @default(now())
+  
+  content                  PodContent @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  user                     User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([content_id, user_id])
+}
+
+model ContentBundle {
+  id                String     @id @default(uuid())
+  bundle_content_id String
+  item_content_id   String
+  
+  bundle            PodContent @relation("BundleToItems", fields: [bundle_content_id], references: [id])
+  item              PodContent @relation("ItemInBundles", fields: [item_content_id], references: [id])
+
+  @@unique([bundle_content_id, item_content_id])
+}
+
+enum PodContentType {
+  VIDEO_UPLOAD
+  VIDEO_LINK
+  DOCUMENT
+  TEXT
+  BUNDLE
+}
+
+model PodInvitation {
+  id         String       @id @default(uuid())
+  pod_id     String
+  email      String
+  status     InviteStatus @default(INVITED)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
+  pod        Pod          @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+
+  @@unique([pod_id, email])
+}
+
+model PodDay {
+  id          String     @id @default(uuid())
+  pod_id      String
+  day_number  Int
+  title       String
+  description String
+  video_url   String?
+  created_at  DateTime   @default(now())
+  artifacts   Artifact[]
+  pod         Pod        @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+
+  @@unique([pod_id, day_number])
+}
+
+model PodMember {
+  pod_id                   String
+  user_id                  String
+  status                   PodMemberStatus @default(JOINED)
+  joined_at                DateTime        @default(now())
+  plan_id                  String?
+  timezone_offset          Int             @default(0)
+  pod                      Pod             @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  user                     User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([pod_id, user_id])
+  @@index([user_id])
+  @@index([pod_id])
+}
+
+model PodSubscriptionPlan {
+  id              String         @id @default(uuid())
+  pod_id          String
+  stripe_price_id String         @unique
+  name            String
+  monthly_price   Decimal
+  pod             Pod            @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  members         Subscription[]
+}
+
+model Announcement {
+  id         String   @id @default(uuid())
+  pod_id     String
+  title      String
+  content    String
+  is_pinned  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  pod        Pod      @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+
+  @@index([pod_id])
+}
+
+model PodChatMessage {
+  id         String   @id @default(uuid())
+  pod_id     String
+  user_id    String
+  content    String
+  created_at DateTime @default(now())
+  pod        Pod      @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([pod_id])
+  @@index([user_id])
+}
+
+model Course {
+  id          String           @id @default(uuid())
+  pod_id      String
+  title       String
+  description String
+  price       Decimal          @default(0.00)
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+  pod         Pod              @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  purchases   CoursePurchase[]
+  lessons     Lesson[]
+
+  @@index([pod_id])
+}
+
+model Lesson {
+  id           String   @id @default(uuid())
+  course_id    String
+  title        String
+  content      String
+  video_url    String?
+  order_number Int
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  course       Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+
+  @@index([course_id])
+}
+
+model CoursePurchase {
+  id          String   @id @default(uuid())
+  course_id   String
+  user_id     String
+  amount_paid Decimal
+  created_at  DateTime @default(now())
+  course      Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([course_id, user_id])
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  user_id    String
+  title      String
+  body       String
+  is_read    Boolean  @default(false)
+  link       String?
+  type       String?
+  created_at DateTime @default(now())
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+}
+
+model Subscription {
+  id            String              @id @default(uuid())
+  user_id       String
+  pod_id        String
+  plan_id       String
+  stripe_sub_id String              @unique
+  status        String              @default("ACTIVE")
+  plan          PodSubscriptionPlan @relation(fields: [plan_id], references: [id])
+  pod           Pod                 @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  user          User                @relation(fields: [user_id], references: [id])
+}
+
+model PayoutAccount {
+  id                       String                      @id @default(uuid())
+  user_id                  String                      @unique
+  stripe_account_id        String?                     @unique
+  stripe_onboarded         Boolean                     @default(false)
+  stripe_subscription_id   String?
+  status                   String
+  account_type             String?
+  encrypted_bank_details   String?
+  encrypted_wallet_address String?
+  full_name                String?
+  provider                 PayoutProvider              @default(STRIPE)
+  provider_metadata        Json?
+  routing_number           String?
+  swift_bic                String?
+  balances                 CreatorBalance[]
+  user                     User                        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  verifications            PayoutAccountVerification[]
+}
+
+model WithdrawalRequest {
+  id              String    @id @default(uuid())
+  creator_id      String
+  amount          Decimal
+  currency        String    @default("USD")
+  status          String    @default("PENDING_VERIFICATION")
+  provider        String
+  transfer_id     String?
+  failure_reason  String?
+  otp_code        String?
+  otp_expires_at  DateTime?
+  otp_verified    Boolean   @default(false)
+  is_flagged      Boolean   @default(false)
+  flag_reason     String?
+  ip_address      String?
+  created_at      DateTime  @default(now())
+  completed_at    DateTime?
+  idempotency_key String?   @unique
+  last_retry_at   DateTime?
+  retry_count     Int       @default(0)
+  creator         User      @relation(fields: [creator_id], references: [id])
+}
+
+model PayoutAccountVerification {
+  id                  String        @id @default(uuid())
+  payout_account_id   String
+  verification_amount Decimal?
+  status              String        @default("PENDING")
+  created_at          DateTime      @default(now())
+  verified_at         DateTime?
+  payout_account      PayoutAccount @relation(fields: [payout_account_id], references: [id], onDelete: Cascade)
+}
+
+model WithdrawalAuditLog {
+  id         String   @id @default(uuid())
+  creator_id String
+  action     String
+  amount     Decimal?
+  ip_address String?
+  metadata   Json?
+  created_at DateTime @default(now())
+}
+
+model CreatorBalance {
+  id                String        @id @default(uuid())
+  payout_account_id String
+  amount            Decimal       @default(0.00)
+  currency          String        @default("USD")
+  pending_amount    Decimal       @default(0.00)
+  updated_at        DateTime      @updatedAt
+  payout_account    PayoutAccount @relation(fields: [payout_account_id], references: [id], onDelete: Cascade)
+
+  @@unique([payout_account_id, currency])
+}
+
+model JournalEntry {
+  id                String   @id @default(uuid())
+  user_id           String
+  content           String
+  title             String?
+  mood_score        Int?
+  primary_emotion   String?
+  emotion_intensity Int?     @default(3)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  category          String?  @default("General")
+  user              User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id                String             @id @default(uuid())
+  user_id           String
+  title             String
+  description       String             @default("")
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
+  target_date       DateTime?
+  total_days        Int?
+  is_completed      Boolean            @default(false)
+  status            GoalStatus         @default(IN_PROGRESS)
+  sessions          ExecutionSession[]
+  user              User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  post_mortem       PostMortem?
+  check_ins         UserGoalCheckIn[]
+  execution_path    ExecutionPath?
+}
+
+model UserGoalCheckIn {
+  id             String   @id @default(uuid())
+  goal_id        String
+  status_update  String
+  progress_value Int?
+  created_at     DateTime @default(now())
+  goal           Goal     @relation(fields: [goal_id], references: [id], onDelete: Cascade)
+}
+
+model AccountabilityPartner {
+  id                   String                @id @default(uuid())
+  user_id              String
+  partner_user_id      String?
+  partner_name         String
+  partner_email        String
+  relationship_type    RelationshipType      @default(OTHER)
+  priority_order       Int                   @default(1)
+  status               InviteStatus          @default(INVITED)
+  invited_at           DateTime              @default(now())
+  accepted_at          DateTime?
+  declined_at          DateTime?
+  partner_user         User?                 @relation("PartneredUsers", fields: [partner_user_id], references: [id])
+  owner                User                  @relation("UserPartners", fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model AIContext {
+  id                  String   @id @default(uuid())
+  user_id             String   @unique
+  synthesized_memory  String?
+  last_interaction_at DateTime @default(now())
+  user                User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model AICompanionPreference {
+  id                  String  @id @default(uuid())
+  user_id             String  @unique
+  check_in_frequency  String  @default("daily")
+  communication_style String  @default("supportive")
+  escalation_enabled  Boolean @default(true)
+  user                User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model ChatMessage {
+  id           String   @id @default(uuid())
+  user_id      String
+  sender       String
+  content      String
+  embedding_id String?
+  created_at   DateTime @default(now())
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model VideoUpdate {
+  id            String   @id @default(uuid())
+  user_id       String
+  pod_id        String?
+  media_url     String
+  thumbnail_url String?
+  created_at    DateTime @default(now())
+  pod           Pod?     @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Artifact {
+  id                      String   @id @default(uuid())
+  user_id                 String
+  pod_day_id              String
+  media_url               String
+  ai_status               AIStatus @default(PENDING)
+  feedback                String?
+  verification_metadata   Json?
+  archived                Boolean  @default(false)
+  created_at              DateTime @default(now())
+  pod_day                 PodDay   @relation(fields: [pod_day_id], references: [id], onDelete: Cascade)
+  user                    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([pod_day_id])
+  @@index([archived])
+}
+
+model UserAnalytics {
+  id                           String @id @default(uuid())
+  user_id                      String @unique
+  total_sessions               Int    @default(0)
+  avg_session_duration_seconds Int    @default(0)
+  streak_trends                Json?
+  user                         User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id         String             @id @default(uuid())
+  user_id    String
+  title      String
+  is_active  Boolean            @default(true)
+  created_at DateTime           @default(now())
+  sessions   ExecutionSession[]
+  user       User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model ExecutionSession {
+  id                      String                 @id @default(uuid())
+  user_id                 String
+  goal_id                 String?
+  status                  ExecutionSessionStatus @default(IN_PROGRESS)
+  started_at              DateTime               @default(now())
+  completed_at            DateTime?
+  task_id                 String?
+  mission                 String?
+  duration                Int?                   @default(60)
+  last_heartbeat_at       DateTime               @default(now())
+  completed               Boolean                @default(false)
+  is_processed            Boolean                @default(false)
+  is_verified             Boolean                @default(false)
+  verification_feedback   String?
+  proof_submission_token  String?
+  proof_window_expires_at DateTime?
+  proof_hash              String?
+  proof_phash             String?
+  requires_presence       Boolean?  @default(false)
+  presence_verified       Boolean?  @default(false)
+  flag_count              Int?      @default(0)
+  flag_status             String?   @default("CLEAN")
+  flags                   ProofFlag[]
+  goal                    Goal?                  @relation(fields: [goal_id], references: [id], onDelete: Cascade)
+  task                    Task?                  @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user                    User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([task_id])
+  @@index([goal_id])
+  @@index([proof_hash])
+}
+
+model UserPreferences {
+  id                  String   @id @default(uuid())
+  user_id             String   @unique
+  // Notifications
+  session_reminders   Boolean  @default(true)
+  streak_alerts       Boolean  @default(true)
+  pod_activity        Boolean  @default(true)
+  weekly_report       Boolean  @default(false)
+  proof_verified      Boolean  @default(true)
+  // Privacy
+  show_on_leaderboard Boolean  @default(true)
+  public_score_card   Boolean  @default(true)
+  activity_visible    Boolean  @default(true)
+  // Default sharing preference for new proof submissions
+  default_share_wider Boolean  @default(false)
+  updated_at          DateTime @updatedAt
+  user                User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model PppRate {
+  id              String   @id @default(uuid())
+  country_code    String   @unique
+  currency_code   String
+  ppp_multiplier  Float
+  updated_at      DateTime @default(now())
+}
+
+model ProofFlag {
+  id              String           @id @default(uuid())
+  session_id      String
+  flagger_user_id String
+  reason          String
+  vote            String           @default("FAKE")
+  created_at      DateTime         @default(now())
+  session         ExecutionSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  flagger         User             @relation(fields: [flagger_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([session_id, flagger_user_id])
+  @@index([session_id])
+  @@index([flagger_user_id])
+}
+
+model CreatorSurvey {
+  id                    String                  @id @default(uuid())
+  pod_id                String
+  member_id             String
+  trigger_session_count Int
+  status                String                  @default("PENDING")
+  completed_at          DateTime?
+  created_at            DateTime                @default(now())
+  responses             CreatorSurveyResponse[]
+  pod                   Pod                     @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  member                User                    @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@unique([pod_id, member_id, trigger_session_count])
+  @@index([pod_id])
+  @@index([member_id])
+}
+
+model CreatorSurveyResponse {
+  id         String         @id @default(uuid())
+  survey_id  String
+  pod_id     String
+  q1_score   Int
+  q2_score   Int
+  q3_score   Int
+  q4_score   Int
+  q5_score   Int
+  created_at DateTime       @default(now())
+  survey     CreatorSurvey  @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+
+  @@index([pod_id])
+  @@index([survey_id])
+}
+
+model DailyActivity {
+  id       String   @id @default(uuid())
+  user_id  String
+  date     DateTime @db.Date
+  executed Boolean  @default(false)
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, date])
+}
+
+model ActivityFeed {
+  id            String    @id @default(uuid())
+  user_id       String
+  pod_id        String?
+  type          String
+  metadata      Json?
+  shared_wider  Boolean   @default(false)
+  expires_at    DateTime?
+  created_at    DateTime  @default(now())
+  user          User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  pod           Pod?      @relation(fields: [pod_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([pod_id])
+  @@index([type])
+}
+
+model CreatorInvitation {
+  id                String    @id @default(cuid())
+  token             String    @unique
+  email             String?
+  is_used           Boolean   @default(false)
+  claimed_user_id   String?
+  wizard_started_at DateTime?
+  created_at        DateTime  @default(now())
+  expires_at        DateTime?
+}
+
+model TrialAbuse {
+  id                 String   @id @default(uuid())
+  device_fingerprint String?
+  phone_number       String?
+  ip_address         String?
+  original_user_id   String
+  created_at         DateTime @default(now())
+}
+
+model MessageLog {
+  id                String   @id @default(uuid())
+  user_id           String?
+  phone_number      String?
+  message           String?
+  channel_attempted String
+  channel_used      String?
+  delivered         Boolean  @default(false)
+  error_message     String?
+  metadata          Json?
+  sent_at           DateTime @default(now())
+  created_at        DateTime @default(now())
+  updated_at        DateTime @default(now()) @updatedAt
+  
+  // NEW FIELDS
+  type              String?
+  subject           String?
+  status            String?  // 'SENT' | 'FAILED'
+}
+
+model VideoPost {
+  id            String   @id @default(uuid())
+  pod_id        String
+  creator_id    String
+  title         String
+  description   String?
+  video_url     String
+  thumbnail_url String?
+  duration             Int?
+  video_type           String   @default("LINK") // UPLOAD | LINK
+  cloudinary_public_id String?
+  created_at           DateTime @default(now())
+  creator       User     @relation("VideoPostCreator", fields: [creator_id], references: [id], onDelete: Cascade)
+  pod           Pod      @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+
+  @@index([pod_id])
+  @@index([creator_id])
+}
+
+model PostMortem {
+  id          String   @id @default(uuid())
+  user_id     String
+  goal_id     String   @unique
+  reflection  String
+  completed   Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  goal        Goal     @relation(fields: [goal_id], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model AdminAccount {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  password_hash         String?
+  is_master             Boolean   @default(false)
+  invitation_token      String?
+  invitation_expires_at DateTime?
+  invitation_accepted   Boolean   @default(false)
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+}
+model PodReport {
+  id          String   @id @default(uuid())
+  pod_id      String
+  reporter_id String
+  reason      String
+  description String?
+  created_at  DateTime @default(now())
+  pod         Pod      @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+
+  @@unique([pod_id, reporter_id])
+  @@index([pod_id])
+  @@index([reporter_id])
+}
+
+model FoundingCreatorLink {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  status    String    @default("unused")
+  usedBy    String?
+  podId     String?
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+}
+
+model PodLiveSession {
+  id               String    @id @default(uuid())
+  pod_id           String
+  creator_id       String
+  title            String
+  duration_minutes Int       @default(60)
+  daily_room_name  String?
+  daily_room_url   String?
+  scheduled_at     DateTime?
+  started_at       DateTime?
+  ended_at         DateTime?
+  status           String    @default("SCHEDULED")
+  is_instant       Boolean   @default(false)
+  reminder_sent    Boolean   @default(false)
+  created_at       DateTime  @default(now())
+  pod              Pod       @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  creator          User      @relation(fields: [creator_id], references: [id], onDelete: Cascade)
+
+  @@index([pod_id])
+  @@index([creator_id])
+}
+model InnerCircle {
+  id              String               @id @default(uuid())
+  creator_id      String
+  name            String
+  description     String?
+  max_members     Int                  @default(100)
+  price_per_month Decimal
+  currency        String?              @default("USD")
+  benefits        String?
+  status          String?              @default("ACTIVE")
+  created_at      DateTime             @default(now())
+  creator         User                 @relation("InnerCircleCreator", fields: [creator_id], references: [id], onDelete: Cascade)
+  members         InnerCircleMember[]
+  sessions        InnerCircleSession[]
+  announcements   InnerCircleAnnouncement[]
+  content         InnerCircleContent[]
+
+  @@index([creator_id])
+}
+
+model InnerCircleAnnouncement {
+  id               String       @id @default(uuid())
+  inner_circle_id  String
+  creator_id       String
+  title            String
+  content          String
+  created_at       DateTime     @default(now())
+  inner_circle     InnerCircle  @relation(fields: [inner_circle_id], references: [id], onDelete: Cascade)
+  creator          User         @relation("InnerCircleAnnouncementCreator", fields: [creator_id], references: [id], onDelete: Cascade)
+
+  @@index([inner_circle_id])
+}
+
+model InnerCircleContent {
+  id               String       @id @default(uuid())
+  inner_circle_id  String
+  creator_id       String
+  title            String
+  description      String?
+  content_type     String       @default("VIDEO_LINK")
+  file_url         String?
+  is_free          Boolean      @default(false)
+  created_at       DateTime     @default(now())
+  inner_circle     InnerCircle  @relation(fields: [inner_circle_id], references: [id], onDelete: Cascade)
+  creator          User         @relation("InnerCircleContentCreator", fields: [creator_id], references: [id], onDelete: Cascade)
+
+  @@index([inner_circle_id])
+}
+
+model InnerCircleMember {
+  id                     String      @id @default(uuid())
+  inner_circle_id        String
+  member_id              String
+  status                 String?     @default("ACTIVE")
+  joined_at              DateTime    @default(now())
+  stripe_subscription_id String?
+  inner_circle           InnerCircle @relation(fields: [inner_circle_id], references: [id], onDelete: Cascade)
+  member                 User        @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@unique([inner_circle_id, member_id])
+  @@index([member_id])
+  @@index([inner_circle_id])
+}
+
+model InnerCircleSession {
+  id               String      @id @default(uuid())
+  inner_circle_id  String
+  creator_id       String
+  duration_minutes Int
+  video_link       String?
+  timer_room_id    String?     @unique
+  status           String?     @default("PENDING")
+  started_at       DateTime?
+  ended_at         DateTime?
+  created_at       DateTime    @default(now())
+  booking_token    String?     @unique
+  scheduled_at     DateTime?
+  capacity         Int?
+  price            Decimal?
+  title            String?
+  daily_room_name  String?
+  daily_room_url   String?
+  bookings         SessionBooking[]
+  creator          User        @relation(fields: [creator_id], references: [id], onDelete: Cascade)
+  inner_circle     InnerCircle @relation(fields: [inner_circle_id], references: [id], onDelete: Cascade)
+
+  @@index([inner_circle_id])
+  @@index([creator_id])
+}
+
+model ConsultationSession {
+  id                String    @id @default(uuid())
+  creator_id        String
+  member_id         String?
+  duration_minutes  Int
+  rate_per_hour     Decimal
+  total_amount      Decimal
+  status            String    @default("PENDING")
+  payment_intent_id String?
+  video_link        String?
+  started_at        DateTime?
+  ended_at          DateTime?
+  timer_room_id     String?   @unique
+  created_at        DateTime  @default(now())
+  booking_token     String?   @unique
+  visitor_name      String?
+  visitor_email     String?
+  scheduled_at      DateTime?
+  title             String?
+  daily_room_name   String?
+  daily_room_url    String?
+  bookings          SessionBooking[]
+  creator           User      @relation("ConsultationCreator", fields: [creator_id], references: [id], onDelete: Cascade)
+  member            User?     @relation("ConsultationMember", fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@index([creator_id])
+  @@index([member_id])
+}
+
+model CreatorAvailability {
+  id         String   @id @default(uuid())
+  creator_id String
+  day_of_week Int     // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  start_time  String  // Format: "HH:MM" in 24hr, e.g. "09:00"
+  end_time    String  // Format: "HH:MM" in 24hr, e.g. "17:00"
+  timezone    String  @default("UTC")
+  is_active       Boolean @default(true)
+  break_minutes   Int     @default(15)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  creator         User     @relation("CreatorAvailabilitySlots", fields: [creator_id], references: [id], onDelete: Cascade)
+
+  @@index([creator_id])
+}
+
+model Promotion {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  current_count Int      @default(0)
+  max_count     Int      @default(100)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+}
+
+model AdminAlert {
+  id          String   @id @default(uuid())
+  type        String
+  message     String
+  severity    String
+  is_resolved Boolean  @default(false)
+  created_at  DateTime @default(now())
+  metadata    Json?
+}
+
+model AgentLogger {
+  id         String           @id @default(uuid())
+  agent_name String
+  created_at DateTime         @default(now())
+  traces     AgentStepTrace[]
+}
+
+model AgentStepTrace {
+  id         String      @id @default(uuid())
+  agent_id   String
+  step       String
+  status     String
+  input      Json?
+  output     Json?
+  tool_calls Json?
+  error      String?
+  context    String?
+  verified   Boolean     @default(false)
+  timestamp  DateTime    @default(now())
+  agent      AgentLogger @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+}
+
+model SessionBooking {
+  id                        String               @id @default(uuid())
+  session_type              String
+  consultation_id           String?
+  inner_circle_session_id   String?
+  visitor_name              String
+  visitor_email             String
+  payment_status            String               @default("PENDING")
+  payment_intent_id         String?
+  paystack_reference        String?
+  amount_paid               Decimal?
+  platform_fee              Decimal?
+  creator_earnings          Decimal?
+  daily_room_url            String?
+  daily_room_name           String?
+  daily_token               String?
+  access_token              String?              @unique
+  created_at                DateTime             @default(now())
+  consultation              ConsultationSession? @relation(fields: [consultation_id], references: [id], onDelete: Cascade)
+  inner_circle_session      InnerCircleSession?  @relation(fields: [inner_circle_session_id], references: [id], onDelete: Cascade)
+
+  @@index([consultation_id])
+  @@index([inner_circle_session_id])
+  @@index([visitor_email])
+  @@index([access_token])
+}
+
+model ExecutionPath {
+  id               String             @id @default(uuid())
+  user_id          String
+  goal_id          String             @unique
+  total_days       Int
+  goal_title       String
+  goal_description String?
+  created_at       DateTime           @default(now())
+  user             User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  goal             Goal               @relation(fields: [goal_id], references: [id], onDelete: Cascade)
+  tasks            ExecutionPathTask[]
+
+  @@index([user_id])
+  @@index([goal_id])
+}
+
+model ExecutionPathTask {
+  id             String        @id @default(uuid())
+  path_id        String
+  day_number     Int
+  title          String
+  description    String
+  proof_type     String        @default("IMAGE")
+  difficulty     String        @default("MEDIUM")
+  status         String        @default("PENDING")
+  completed_at   DateTime?
+  completed_late Boolean       @default(false)
+  is_milestone   Boolean       @default(false)
+  milestone_label String?
+  created_at     DateTime      @default(now())
+  path         ExecutionPath @relation(fields: [path_id], references: [id], onDelete: Cascade)
+
+  @@index([path_id])
+  @@index([status])
+}
+
+enum Role {
+  USER
+  VERIFIED_CREATOR
+  FOUNDING_CREATOR
+  ADMIN
+}
+
+enum PayoutProvider {
+  STRIPE
+  PAYSTACK
+  WISE
+  CRYPTO
+  MANUAL
+}
+
+enum CreatorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VerificationType {
+  AI_IMAGE
+  AI_MULTIMODAL
+  LINK
+  MANUAL
+}
+
+enum AIStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PodMemberStatus {
+  JOINED
+  LEFT
+  BANNED
+}
+
+enum RelationshipType {
+  FRIEND
+  MENTOR
+  COACH
+  PARTNER
+  OTHER
+}
+
+enum InviteStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+}
+
+enum AlertStatus {
+  PENDING
+  TRIGGERED
+  RESOLVED
+}
+
+enum NotificationType {
+  INVITE
+  ALERT
+  GENERAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  INACTIVE
+}
+
+enum UserTier {
+  BLUEPRINT
+  EXECUTOR
+  UNSTOPPABLE
+}
+
+enum GuardianStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum GuardianRelationshipType {
+  FRIEND
+  COACH
+  FAMILY
+  COLLEAGUE
+}
+
+enum ExecutionSessionStatus {
+  IN_PROGRESS
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum GoalStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  ABANDONED
+}
+
+model PodDayCompletion {
+  id           String   @id @default(uuid())
+  pod_id       String
+  day_id       String
+  user_id      String
+  session_id   String?
+  is_verified  Boolean  @default(false)
+  completed_at DateTime @default(now())
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([day_id, user_id])
+  @@index([pod_id])
+  @@index([user_id])
+  @@index([day_id])
+}
+
+model ContentComment {
+  id         String   @id @default(uuid())
+  content_id String
+  pod_id     String
+  user_id    String
+  text       String
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([content_id])
+  @@index([pod_id])
+  @@index([user_id])
+}
+
+model ContentReaction {
+  id         String   @id @default(uuid())
+  content_id String
+  pod_id     String
+  user_id    String
+  emoji      String
+  created_at DateTime @default(now())
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([content_id, user_id, emoji])
+  @@index([content_id])
+  @@index([user_id])
+}
+
+model ScoreSnapshot {
+  id             String   @id @default(uuid())
+  user_id        String
+  score          Int
+  consistency    Float    @default(0)
+  authenticity   Float    @default(0)
+  tenure         Float    @default(0)
+  recovery       Float    @default(0)
+  community      Float    @default(0)
+  created_at     DateTime @default(now())
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([created_at])
+}
+
+model PresenceMessage {
+  id           String    @id @default(uuid())
+  user_id      String
+  message      String
+  trigger_type String
+  context_snapshot Json?
+  noted_at     DateTime?
+  created_at   DateTime  @default(now())
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+}
+
+model PodPayment {
+  id           String   @id @default(uuid())
+  pod_id       String
+  user_id      String
+  amount       Float
+  currency     String
+  provider     String
+  reference    String?  @unique
+  created_at   DateTime @default(now())
+  pod          Pod      @relation(fields: [pod_id], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([pod_id])
+  @@index([user_id])
+}
+
+
+
+
+
